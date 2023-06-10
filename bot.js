@@ -9,13 +9,14 @@ const
     ButtonBuilder, 
     ButtonStyle,
     ActionRowBuilder,
-    SlashCommandBuilder
+    roleMention,
 } = require('discord.js');
 
 const { TeamSpeak } = require('ts3-nodejs-library');
 const config = require('./config');
 const randomstring = require('randomstring');
 const mysql = require('mysql');
+const emoji = require('./emoji');
 
 // Register Client and REST (used for registering Guild Events and Bits)
 const client = new Client({
@@ -25,7 +26,8 @@ const client = new Client({
         GatewayIntentBits.GuildInvites,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildMessageReactions,
-        GatewayIntentBits.GuildMembers
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildWebhooks
     ],
 });
 
@@ -69,9 +71,10 @@ client.on('ready', () => {
 });
 
 const guild = client.guilds.cache.get();
+
 let command;
 
-// Client Commmands
+//#region Command Creation
 client.on('ready', () => {
     
     if (guild) {
@@ -175,20 +178,20 @@ client.on('ready', () => {
                 required: true,
             },
             {
-                name: "website-id",
-                description: "The website id of the user to ban",
-                type: 4, // int type
-                required: true
-            },
-            {
                 name: "ts-uid",
                 description: "The unique identifer of the user to ban from server assests",
                 type: 3, // string type
-                required: true
+                required: false // I can't get this from a database until I code the API.
+            },
+            {
+                name: "website-id",
+                description: "The website id of the user to ban",
+                type: 4, // int type
+                required: false
             },
             {
                 name: "ban-reason",
-                description: "",
+                description: "the reason to ban the user",
                 type: 3, // string type
                 required: false
             }
@@ -208,9 +211,25 @@ client.on('ready', () => {
             }
         ]
     });
+
+    command.create({
+        name: "patrol-alert",
+        description: "Sends out a vote for an Roleplay Session to start.",
+        options: 
+        [
+            {
+                name: "date",
+                description: "the date for the rp to start.",
+                type: 3,
+                required: true
+            }
+        ]
+    })
 });
 
-// Command Interaction
+//#endregion
+
+//#region Command Interaction
 client.on('interactionCreate', async (interaction) => {
    if (!interaction.isChatInputCommand()) return;
    // Varibles
@@ -314,52 +333,84 @@ client.on('interactionCreate', async (interaction) => {
         name: "Sonoran Radio",
         value: "[Link](https://info.sonoranradio.com/en/tutorials/install-plugin) | **NOTE:** SAPR Must be uninstalled for this to work. "
     })
-    .setFooter({ text: "BPRP Development Team", iconURL: "https://media.discordapp.net/attachments/1116557870910148639/1116559638121418782/BPRP_DEV.png?width=1002&height=1004"})
+    .setFooter({ 
+    text: "BPRP Development Team", 
+    iconURL: "https://media.discordapp.net/attachments/1116557870910148639/1116559638121418782/BPRP_DEV.png?width=1002&height=1004"})
 
     interaction.reply({ content: "this doesn't matter so click off of this :/", ephemeral: true });
     interaction.channel.send({ embeds: [infoEmbed] });
    }
-
+   
    if (commandName == "ban") {
-    const ts3Id = options.getString("ts-uid");
-    const user = options.getUser("ban-user");
-    const reason = options.getUser("ban-reason") ?? "No reason provided.";
-    const webId = options.getInteger("website-id");
-    
-    const confirmButton = new ButtonBuilder()
-    .setCustomId("confirmBanButton")
-    .setLabel("Confirm")
-    .setStyle(ButtonStyle.Success);
+    const targetedClient = options.getUser('ban-user');
+    guild.members.ban(targetedClient);
 
-    const cancelButton = new ButtonBuilder()
+    const buttonConfirmBan = new ButtonBuilder()
+    .setCustomId("confirmBanButton")
+    .setStyle(ButtonStyle.Success)
+    .setLabel("Confirm");
+
+    const buttonCancelBan = new ButtonBuilder()
     .setCustomId("cancelBanButton")
-    .setLabel("Cancel")
-    .setStyle(ButtonStyle.Danger);
+    .setStyle(ButtonStyle.Danger)
+    .setLabel("Cancel");
 
     const banRow = new ActionRowBuilder()
-    .addComponents(cancelButton, confirmButton);
+    .addComponents(buttonCancelBan, buttonConfirmBan); 
 
-    interaction.reply({ content: `Are you sure you want to ban ${user} for ${reason}`, ephemeral: true, components: [banRow] });
+    await interaction.reply({ content: `Are you sure you want to ban ${targetedClient.username}?`, components: [banRow], ephemeral: true})
    }
 
-   if (commandName == "remove-tags") {
-    const ts3Id = options.getString("ts3-uid");
+   if (commandName == "patrol-alert") {
+    const dateOfPatrol = options.getString("date");
+    const everyone = interaction.guild.roles.everyone;
     
+    const embedPatrolAlert = new EmbedBuilder()
+    .setTitle(`${dateOfPatrol} | **BPRP - Roleplay Session Start Time Vote:**`)
+    .setDescription("*to add reaction, click on reaction and type one, " + 
+    "three, six, or nine spelled out in order for the emoji to pop up!*")
+    .setThumbnail("https://media.discordapp.net/attachments/1116557870910148639/1116559400308584448/beachpointlogo.png?width=1338&height=1004")
+    .setTimestamp()
+    .setColor('DarkRed')
+    .setFooter({
+    text: "BPRP Development Team", 
+    iconURL: "https://media.discordapp.net/attachments/1116557870910148639/1116559638121418782/BPRP_DEV.png?width=1002&height=1004"
+    })
+    .addFields
+    ({
+        name: "Times:",
+        value: `1-3PM EST - ${emoji[1]}\n3-5PM EST - ${emoji[3]}\n6-8PM EST - ${emoji[6]}\n9-10PM EST - ${emoji[9]}`
+    });
+    await interaction.reply({ content: `@everyone`, embeds: [embedPatrolAlert], allowedMentions: everyone});
+    const message = await interaction.fetchReply();
+
+    message.react(`${emoji[1]}`);
+    message.react(`${emoji[3]}`);
+    message.react(`${emoji[6]}`);
+    message.react(`${emoji[9]}`);
    }
+   //#endregion
 
-   client.on('interactionCreate', async interaction => {
-    if (!interaction.isButton()) return;
+    //#region Button Inteactions with/without commands
+    client.on('interactionCreate', buttonInteraction => {
+        if (!buttonInteraction.isButton()) return;
+        const { customId } = buttonInteraction;
+        const targetedClient = options.getUser('ban-user');
 
-    if (interaction.customId == "confirmBanButton") {
-        
-        interaction.reply({ content: `Okidoke, person has been yeeted. Sucks to be them, enjoy doing paperwork loser.`, 
-        ephemeral: true });
-    }
-    else if (interaction.customId == "cancelBanButton") {
-        interaction.reply({ content: `Ban has been cancelled, just like your twitter account.`, ephemeral: true })
-        .then(msg => msg.delete({ setTimeout: 5000})); // 5 seconds
-    }
-   })
+        if (customId == "confirmBanButton") {
+            buttonInteraction.reply({ content:`Okiedokie, Just banned ${targetedClient} from all assets... Enjoy doing paperwork :P`,
+            ephemeral: true })
+            .then(message => message.delete({ setTimeout: 5000 })); // 5 Seconds
+
+
+            buttonInteraction.member.ban(targetedClient);
+        }
+        else if (customId == "cancelBanButton") {
+            buttonInteraction.reply({ content: `Alright I cancelled the ban... Just how your twitter account got cancelled`, })
+            then(message => message.delete({ setTimeout: 5000 })); // 5 Seconds
+        }
+    });
+    //#endregion
 });
 // Attempt to connect to bot
 try {
