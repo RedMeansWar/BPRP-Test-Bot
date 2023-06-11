@@ -402,6 +402,7 @@ client.on('interactionCreate', async (interaction) => {
             ephemeral: true })
             .then(message => message.delete({ setTimeout: 5000 })); // 5 Seconds
 
+            const banAllAssets = 
 
             buttonInteraction.member.ban(targetedClient);
         }
