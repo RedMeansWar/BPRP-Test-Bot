@@ -9,6 +9,7 @@
             "port": 3306,
             "driver": "MySQL",
             "name": "MySQL Master / Bot",
+            "name": "BPRP Master",
             "database": "s1_master",
             "username": "u1_8l7EPzzggl",
             "password": "jS.pun8b56Y2xpP^LlAD@BOR"
