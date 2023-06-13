@@ -8,15 +8,19 @@ const
     Routes, 
     ButtonBuilder, 
     ButtonStyle,
-    ActionRowBuilder,
-    roleMention,
+    ActionRowBuilder
 } = require('discord.js');
 
 const { TeamSpeak } = require('ts3-nodejs-library');
+const { exec } = require('child_process');
 const config = require('./config');
 const randomstring = require('randomstring');
 const mysql = require('mysql');
 const emoji = require('./emoji');
+const logger = require('./logger');
+
+//#region List of RCON commands for server resources start/stop/restart
+
 
 // Register Client and REST (used for registering Guild Events and Bits)
 const client = new Client({
@@ -31,25 +35,25 @@ const client = new Client({
     ],
 });
 
-const rest = new REST().setToken(config.token);
-// rest.delete(Routes.applicationCommand(config.clientId, '1115890965941596220')).then(() => console.log("[BPRP Bot]: Deleted Command"));
+const rest = new REST().setToken(config.bot.token);
+// rest.delete(Routes.applicationCommand(config.bot.clientId, '1115890965941596220')).then(() => console.log("[BPRP Bot]: Deleted Command"));
 
 // TeamSpeak 3 connection
 const teamspeak = new TeamSpeak({
-    host: config.ts3Host,
+    host: config.teamspeak.ts3Host,
     queryport: 10011,
     serverport: 9987,
-    username: config.ts3Name,
-    password: config.ts3Pass
+    username: config.teamspeak.ts3Name,
+    password: config.teamspeak.ts3Pass
 });
 
 // Connect to Master DB
-const mysqlConnect = mysql.createConnection({
-    host: config.dbHost,
-    user: config.dbUsername,
-    password: config.dbPassword,
-    port: config.dbPort,
-    timeout: config.timeout
+const database = mysql.createConnection({
+    host: config.database.dbHost,
+    user: config.database.dbUsername,
+    password: config.database.dbPassword,
+    port: config.database.dbPort,
+    timeout: config.database.timeout
 });
 
 // Console output
@@ -57,7 +61,7 @@ client.on('ready', () => {
     console.log('[BPRP]: Bot Online');
 });
 
-mysqlConnect.connect(function(err) {
+database.connect(function(err) {
     console.log('[MySQL]: Connect to Master Database');
 });
 
@@ -71,6 +75,16 @@ client.on('ready', () => {
 });
 
 const guild = client.guilds.cache.get();
+
+const guildIdMain = "1083784150647058432";
+const guildIdDev = "1110760188996239371";
+const guildIdStaff = "1101143145875517502";
+const guildIdSasp = "1110385177198329867";
+const guildIdLspd = "1100230229403914252";
+const guildIdLsfd = "1108460889507627031";
+const guildIdSacd = "1089439461256986674";
+const guildIdCiv = "1103522762934452266";
+const guildIdPublic = "1083791101749633044";
 
 let command;
 
@@ -181,7 +195,7 @@ client.on('ready', () => {
                 name: "ts-uid",
                 description: "The unique identifer of the user to ban from server assests",
                 type: 3, // string type
-                required: false // I can't get this from a database until I code the API.
+                required: true // I can't get this from a database until I code the API.
             },
             {
                 name: "website-id",
@@ -219,12 +233,65 @@ client.on('ready', () => {
         [
             {
                 name: "date",
-                description: "the date for the rp to start.",
+                description: "the date for the rp to start",
                 type: 3,
                 required: true
             }
         ]
+    });
+
+    // Dev
+    command.create({ 
+        name: "restart-script",
+        description: "restarts certain server scripts.",
+        options: 
+        [
+            {
+                name: "script",
+                description: "script you with to restart",
+                type: 3, // string type
+                required: true
+            }
+        ]
     })
+
+    command.create({
+        name: "server-restart",
+        description: "Restarts a specific BPRP FiveM Server.",
+        options: 
+        [
+            {
+                name: "server",
+                description: "the server to restart",
+                type: 3, // string type
+                required: true
+            }
+        ]
+    })
+
+    command.create({
+        name: "bot-info",
+        description: "Shows bot information."
+    });
+
+    command.create({
+        name: "server-info",
+        description: "Displays BPRP FiveM server information.",
+        options:
+        [
+            {
+                name: "server-name",
+                description: "the name of the server you wish to look information about",
+                type: 3, // string type
+                required: true
+            }
+        ]
+    });
+    
+    command.create({
+        name: "client-info",
+        description: "Displays client information."
+    });
 });
 
 //#endregion
@@ -233,8 +300,7 @@ client.on('ready', () => {
 client.on('interactionCreate', async (interaction) => {
    if (!interaction.isChatInputCommand()) return;
    // Varibles
-   var { commandName } = interaction;
-   var { options } = interaction;
+   var { commandName, options } = interaction;
    var tempPassGen = randomstring.generate(8);
    var tempPass = tempPassGen;
    
@@ -269,80 +335,103 @@ client.on('interactionCreate', async (interaction) => {
     teamspeak.channelEdit(124, {
         channelName: `AOP: ${aopCategory}`
     })
-    // one console log because why not
-    console.log(`[BPRP FRAMEWORK]: AOP Updated to: ${aopCategory}`);
-
+    // logs
+    logger.LogFramework(`AOP Updated to ${aopCategory}`);
+    logger.LogDebug(`User ${interaction.user} updated aop to ${aopCategory}`);
     interaction.reply({ content: `AOP Updated to: ${aopCategory}`, ephemeral: true});
    }
 
    if (commandName == "reset-aop") {
-    teamspeak.channelEdit(271, {
+    teamspeak.channelEdit(config.aopChannel, {
         channelName: "AOP: Not Set"
-    })
-    // one console log because why not
-    console.log(`[BPRP FRAMEWORK]: AOP Reset`);
-
-    interaction.reply({ content: `AOP reset`, ephemeral: true})
+    });
+    // more logs :D
+    logger.LogFramework("AOP RESET");
+    logger.LogInfo(`${interaction.user} changed the AOP`)
+    interaction.reply({ content: `AOP reset`, ephemeral: true});
    }
 
    if (commandName == "info") {
     const infoEmbed = new EmbedBuilder()
-    .setTitle("Community Information")
-    .setColor("Blue")
+    .setColor('DarkAqua')
     .setTimestamp()
-    .setThumbnail("https://media.discordapp.net/attachments/1116557870910148639/1116559400308584448/beachpointlogo.png?width=1338&height=1004")
+    .setThumbnail(config.logo.bprp)
+    .setFooter({ text: "BPRP Development Team", iconURL: config.logo.dev})
+    .setTitle("Beach Point Roleplay General Information")
     .addFields
     ({
-        name: "Rules & Regulations",
-        value: "[Link](https://docs.google.com/document/d/13IE6URM5RSzJZAYt5N4uY0AHPz9to4zougYl-dhLjxg/edit?usp=sharing)",
-    },
-    {
-        name: "Penal Code",
-        value: "[Link](https://docs.google.com/document/d/1iswMUtIZ4KpGmD4UShdH4SCN4qrt49oSybPqmI_f7iw/edit?usp=sharing)",
-    },
-    {
-        name: "LSPD Discord",
-        value: "[Link](https://discord.gg/vjHvVVMsPY)",
-    },
-    {
-        name: "SASP Discord",
-        value: "[Link](https://discord.gg/Yh3Nsja6Kp)",
-    },
-    {
-        name: "Fire Discord",
-        value: "[Link](https://discord.gg/dkjAYv3DpN)",
-    },
-    {
-        name: "Communications Discord",
-        value: "[Link](https://discord.gg/HXfT7ufyNG)",
-    },
-    {
-        name: "Civilian Discord",
-        value: "[Link](https://discord.gg/F2WPzUSGrC)",
-    },
-    {
-        name: "BPRP Main TeamSpeak IP",
+        name: "Main TeamSpeak IP",
         value: "ts.beachpointrp.com"
     },
     {
-        name: "BPRP Interview TeamSpeak IP",
+        name: "Interview TeamSpeak",
         value: "interview.beachpointrp.com"
     },
     {
-        name: "Sonoran Radio",
-        value: "[Link](https://info.sonoranradio.com/en/tutorials/install-plugin) | **NOTE:** SAPR Must be uninstalled for this to work. "
-    })
-    .setFooter({ 
-    text: "BPRP Development Team", 
-    iconURL: "https://media.discordapp.net/attachments/1116557870910148639/1116559638121418782/BPRP_DEV.png?width=1002&height=1004"})
+        name: "Patrol Server",
+        value: "server1.beachpointrp.com"
+    },
+    {
+        name: "Website",
+        value: "https://beachpointrp.com"
+    },
+    {
+        name: "Sonoran Radio DISCLAIMER:",
+        value: "*SAPR Must be uninstalled in order for Sonoran Radio to work.*"
+    });
+
+    const infoRow = new ActionRowBuilder()
+    .addComponents
+    (
+    new ButtonBuilder()
+    .setLabel("Rules and Regulations")
+    .setStyle(ButtonStyle.Link)
+    .setURL(config.links.rr),
+    
+    new ButtonBuilder()
+    .setLabel("Penal Code")
+    .setStyle(ButtonStyle.Link)
+    .setURL(config.links.pc),
+    
+    new ButtonBuilder()
+    .setLabel("LSPD Discord")
+    .setStyle(ButtonStyle.Link)
+    .setURL(config.links.lspd),
+
+    new ButtonBuilder() 
+    .setLabel("SASP Discord")
+    .setStyle(ButtonStyle.Link)
+    .setURL(config.links.sasp),
+
+    new ButtonBuilder()
+    .setLabel("Fire Discord")
+    .setStyle(ButtonStyle.Link)
+    .setURL(config.links.fire));
+
+    const infoRow2 = new ActionRowBuilder()
+    .addComponents
+    (
+    new ButtonBuilder()
+    .setLabel("Communications Discord")
+    .setStyle(ButtonStyle.Link)
+    .setURL(config.links.comms),
+
+    new ButtonBuilder()
+    .setLabel("Civilian Discord")
+    .setStyle(ButtonStyle.Link)
+    .setURL(config.links.civ),
+    
+    new ButtonBuilder()
+    .setLabel("Sonoran Radio")
+    .setStyle(ButtonStyle.Link)
+    .setURL(config.links.radio));
 
     interaction.reply({ content: "this doesn't matter so click off of this :/", ephemeral: true });
-    interaction.channel.send({ embeds: [infoEmbed] });
+    interaction.channel.send({ embeds: [infoEmbed], components: [infoRow, infoRow2] });
    }
    
    if (commandName == "ban") {
     const targetedClient = options.getUser('ban-user');
-    guild.members.ban(targetedClient);
 
     const buttonConfirmBan = new ButtonBuilder()
     .setCustomId("confirmBanButton")
@@ -357,7 +446,8 @@ client.on('interactionCreate', async (interaction) => {
     const banRow = new ActionRowBuilder()
     .addComponents(buttonCancelBan, buttonConfirmBan); 
 
-    await interaction.reply({ content: `Are you sure you want to ban ${targetedClient.username}?`, components: [banRow], ephemeral: true})
+    await interaction.reply({ 
+    content: `Are you sure you want to ban ${targetedClient.username}?`, components: [banRow], ephemeral: true});
    }
 
    if (commandName == "patrol-alert") {
@@ -388,32 +478,112 @@ client.on('interactionCreate', async (interaction) => {
     message.react(`${emoji[6]}`);
     message.react(`${emoji[9]}`);
    }
-   //#endregion
 
-    //#region Button Inteactions with/without commands
-    client.on('interactionCreate', buttonInteraction => {
+   if (commandName == "server-restart") {
+    
+   }
+
+   if (commandName == "restart-server") {
+    
+   }
+
+   if (commandName == "restart-bot") {
+
+   }
+
+   if (commandName == "server-info") {
+    
+   }
+
+   if (commandName == "client-info") {
+    
+   }
+
+   if (commandName == "bot-info") {
+    
+    let totalSeconds = (client.uptime / 1000);
+    let days = Math.floor(totalSeconds / 86400);
+    totalSeconds %= 86400;
+    let hours = Math.floor(totalSeconds / 3600);
+    totalSeconds %= 3600;
+    let minutes = Math.floor(totalSeconds / 60);
+    let seconds = Math.floor(totalSeconds % 60);
+
+    let uptime = `${days} days, ${hours} hours, ${minutes} minutes and ${seconds} seconds`;
+    let ping = `${Date.now() - interaction.createdTimestamp()}ms` 
+
+    const embedBotInfo = new EmbedBuilder()
+    .setColor('Aqua')
+    .setTitle("BPRP Discord Bot")
+    .setFooter({text: "BPRP Development Team", iconURL: config.logo.dev })
+    .addFields({
+        name: "Latency (Ping)🏓",
+        value: `${client.ws.ping} ms`,
+        inline: true
+    },
+    {
+        name: "Bot Uptime",
+        value: `${ping}`,
+        inline: true
+    },
+    {
+        name: "Bot ID",
+        value: `${config.bot.clientId}`,
+        inline: true
+    },
+    {
+        name: "",
+        value: ``
+    })
+    .setTimestamp();
+    await interaction.reply({ embeds: [embedBotInfo] });
+   }
+    //#region Other Events :/
+    client.on('guildMemberAdd', async member => {
+        const roleIdMain = "";
+        const roleIdDev = "";
+        const roleIdStaff = "";
+        const roleIdSasp = "";
+        const roleIdLspd = "";
+        const roleIdLsfd = "";
+        const roleIdSacd = "";
+        const roleIdCiv = "";
+
+    });
+    
+    client.on('interactionCreate', async buttonInteraction => {
         if (!buttonInteraction.isButton()) return;
+
         const { customId } = buttonInteraction;
         const targetedClient = options.getUser('ban-user');
+        const reason = options.getUser("ban-reason");
+
+        async function reply() {
+            buttonInteraction.reply({ content: `Okidokie, Just banned ${targetedClient} for ${reason}.`, ephemeral: true})
+        }
 
         if (customId == "confirmBanButton") {
-            buttonInteraction.reply({ content:`Okiedokie, Just banned ${targetedClient} from all assets... Enjoy doing paperwork :P`,
-            ephemeral: true })
-            .then(message => message.delete({ setTimeout: 5000 })); // 5 Seconds
-
-
-            buttonInteraction.member.ban(targetedClient);
+            await reply();
+            teamspeak.logAdd(`${tsId} was banned for ${reason} banned was issued by ${buttonInteraction.user.username}`);
+            teamspeak.ban({ uid: tsId });
+            logger.LogInfo(`${targetedClient} issued a ban on ${targetedClient}`);
         }
         else if (customId == "cancelBanButton") {
-            buttonInteraction.reply({ content: `Alright I cancelled the ban... Just how your twitter account got cancelled`, })
-            then(message => message.delete({ setTimeout: 5000 })); // 5 Seconds
+            await buttonInteraction.reply({ content: "The ban was cancelled. Just like your twitter account", ephemeral: true });
+            logger.LogInfo(`${interaction.user} attempted to ban ${targetedClient} however the ban was cancelled.`);
         }
     });
+
+    client.on('messageReactionAdd', async (msgReaction, user) => {
+        if (user.bot) return;
+
+    });
+
     //#endregion
 });
 // Attempt to connect to bot
 try {
-    client.login(config.token);
+    client.login(config.bot.token);
 } catch(err) {
     console.error(err);
 }
