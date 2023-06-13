@@ -108,7 +108,7 @@ client.on('ready', () => {
     8 - Role
     9 - Mentionable
     10 - Number (any double between -2^53 and 2^53)
-    11 - Attachement
+    11 - Attachment
     */
 
     ////// Command Registration //////
@@ -323,7 +323,8 @@ client.on('interactionCreate', async (interaction) => {
     {
         name: "Duration:",
         value: "5 Minutes"
-    });
+    }) 
+    .setFooter({ text: "BPRP Development Team", iconURL: "https://media.discordapp.net/attachments/1116557870910148639/1116559638121418782/BPRP_DEV.png?width=1002&height=1004"});
     teamspeak.serverTempPasswordAdd({ pw: tempPass, duration: 300, desc: `generated via bot by ${interaction.member.displayName}(${interaction.member.id})`})
     await interaction.reply({ embeds: [tempPassEmbed] });
    }
@@ -573,12 +574,6 @@ client.on('interactionCreate', async (interaction) => {
             logger.LogInfo(`${interaction.user} attempted to ban ${targetedClient} however the ban was cancelled.`);
         }
     });
-
-    client.on('messageReactionAdd', async (msgReaction, user) => {
-        if (user.bot) return;
-
-    });
-
     //#endregion
 });
 // Attempt to connect to bot
