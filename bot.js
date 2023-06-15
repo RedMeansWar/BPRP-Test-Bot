@@ -402,16 +402,17 @@ client.on('interactionCreate', async (interaction) => {
     new ButtonBuilder() 
     .setLabel("SASP Discord")
     .setStyle(ButtonStyle.Link)
-    .setURL(config.links.sasp),
+    .setURL(config.links.sasp));
 
-    new ButtonBuilder()
-    .setLabel("Fire Discord")
-    .setStyle(ButtonStyle.Link)
-    .setURL(config.links.fire));
 
     const infoRow2 = new ActionRowBuilder()
     .addComponents
     (
+    new ButtonBuilder()
+    .setLabel("Fire Discord")
+    .setStyle(ButtonStyle.Link)
+    .setURL(config.links.fire),
+
     new ButtonBuilder()
     .setLabel("Communications Discord")
     .setStyle(ButtonStyle.Link)
