@@ -112,7 +112,6 @@ client.on('ready', () => {
     */
 
     ////// Command Registration //////
-    // Admin Commands
     command.create({
         name: "temp-pass",
         description: "Creates a 5 Minute Temporary Password for the Main TeamSpeak."
@@ -225,6 +224,20 @@ client.on('ready', () => {
             }
         ]
     });
+    
+    command.create({
+        name: "",
+        description: "",
+        options:
+        [
+            {
+                name: "",
+                description: "",
+                type: 3, // string type
+                required: true
+            }
+        ]
+    });
 
     command.create({
         name: "patrol-alert",
@@ -240,7 +253,6 @@ client.on('ready', () => {
         ]
     });
 
-    // Dev
     command.create({ 
         name: "restart-script",
         description: "restarts certain server scripts.",
@@ -291,6 +303,55 @@ client.on('ready', () => {
     command.create({
         name: "client-info",
         description: "Displays client information."
+    });
+
+    command.create({
+        name: "dev-server-info",
+        description: "Gives discord serfver information."
+    });
+    
+    command.create({
+        name: "dev-send-release",
+        description: "Sends out a development release to the main server.",
+        options:
+        [
+            {
+                name: "release-link",
+                description: "the link that has the release information on. (added, changed)",
+                type: 3, // string type 
+                required: true
+            }
+        ]
+    });
+    
+    command.create({
+        name: "",
+        description: ""
+    });
+    
+    command.create({
+        name: "",
+        description: ""
+    });
+    
+    command.create({
+        name: "",
+        description: ""
+    });
+    
+    command.create({
+        name: "",
+        description: ""
+    });
+    
+    command.create({
+        name: "",
+        description: ""
+    });
+    
+    command.create({
+        name: "",
+        description: ""
     });
 });
 
@@ -378,7 +439,7 @@ client.on('interactionCreate', async (interaction) => {
     },
     {
         name: "Sonoran Radio DISCLAIMER:",
-        value: "*SAPR Must be uninstalled in order for Sonoran Radio to work.*"
+        value: "*SAPR (San Andreas Police Radio) Must be uninstalled in order for Sonoran R adio to work.*"
     });
 
     const infoRow = new ActionRowBuilder()
@@ -581,8 +642,13 @@ client.on('interactionCreate', async (interaction) => {
             await buttonInteraction.reply({ content: "The ban was cancelled. Just like your twitter account", ephemeral: true });
             logger.LogInfo(`${interaction.user} attempted to ban ${targetedClient} however the ban was cancelled.`);
         }
+        //#endregion
+        
+        //#region Guild Specific Commands
+        ////// DEV //////
+
+        //#endregion
     });
-    //#endregion
 });
 // Attempt to connect to bot
 try {

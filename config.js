@@ -34,7 +34,7 @@ module.exports = {
     rcon: {
         restart: "restart",
         start: "start",
-        stop: ""
+        stop: "stop"
     },
 
     logo: {
@@ -56,5 +56,16 @@ module.exports = {
         comms: "https://discord.gg/HXfT7ufyNG",
         civ: "https://discord.gg/F2WPzUSGrC",
         radio: "https://info.sonoranradio.com/en/tutorials/install-plugin"
+    },
+
+    guildIds: {
+        dev: "1110760188996239371",
+        lspd: "1100230229403914252",
+        sasp: "1110385177198329867",
+        fire: "1108460889507627031",
+        comms: "1089439461256986674",
+        civ: "1103522762934452266",
+        staff: "1101143145875517502",
+        public: "1083791101749633044"
     }
 }
