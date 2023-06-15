@@ -36,7 +36,7 @@ const client = new Client({
 });
 
 const rest = new REST().setToken(config.bot.token);
-// rest.delete(Routes.applicationCommand(config.bot.clientId, '1115890965941596220')).then(() => console.log("[BPRP Bot]: Deleted Command"));
+// rest.delete(Routes.applicationCommand(config.bot.clientId, '1118768084342296656')).then(() => console.log("[BPRP Bot]: Deleted Command"));
 
 // TeamSpeak 3 connection
 const teamspeak = new TeamSpeak({
@@ -224,20 +224,6 @@ client.on('ready', () => {
             }
         ]
     });
-    
-    command.create({
-        name: "",
-        description: "",
-        options:
-        [
-            {
-                name: "",
-                description: "",
-                type: 3, // string type
-                required: true
-            }
-        ]
-    });
 
     command.create({
         name: "patrol-alert",
@@ -247,7 +233,7 @@ client.on('ready', () => {
             {
                 name: "date",
                 description: "the date for the rp to start",
-                type: 3,
+                type: 3, // string type
                 required: true
             }
         ]
@@ -265,6 +251,11 @@ client.on('ready', () => {
                 required: true
             }
         ]
+    });
+
+    command.create({
+        name: "restart-bot",
+        description: "Restarts the bot."
     })
 
     command.create({
@@ -302,7 +293,15 @@ client.on('ready', () => {
     
     command.create({
         name: "client-info",
-        description: "Displays client information."
+        description: "Displays client information.",
+        options: 
+        [
+            {
+                name: "member-search",
+                description: "the user to search up",
+                required: true
+            }
+        ]
     });
 
     command.create({
@@ -325,34 +324,38 @@ client.on('ready', () => {
     });
     
     command.create({
-        name: "",
-        description: ""
-    });
-    
+        name: "rename-ts-channel",
+        description: "Rename any channel on teamspeak. You need the channel Id for this to work.",
+        options:
+        [
+            {
+                name: "channel-id",
+                description: "channel Id of the teamspeak channel you wish to rename",
+                type: 4, // int type
+                required: true
+            },
+            {
+                name: "rename-channel",
+                description: "what you want the channel name to be.",
+                type: 3, // string type
+                require: true
+            }
+        ]
+    })
+
     command.create({
-        name: "",
-        description: ""
-    });
-    
-    command.create({
-        name: "",
-        description: ""
-    });
-    
-    command.create({
-        name: "",
-        description: ""
-    });
-    
-    command.create({
-        name: "",
-        description: ""
-    });
-    
-    command.create({
-        name: "",
-        description: ""
-    });
+        name: "purge",
+        description: "Purge/Clear a certain amount of messages in a channel.",
+        options: 
+        [
+            {
+                name: "purge-amount",
+                description: "The amount of messages you wish to delete",
+                type: 4, // int type
+                require: true
+            }
+        ]
+    })
 });
 
 //#endregion
@@ -362,6 +365,7 @@ client.on('interactionCreate', async (interaction) => {
    if (!interaction.isChatInputCommand()) return;
    // Varibles
    var { commandName, options } = interaction;
+   var username = interaction.user.username;
    var tempPassGen = randomstring.generate(8);
    var tempPass = tempPassGen;
    
@@ -399,17 +403,17 @@ client.on('interactionCreate', async (interaction) => {
     })
     // logs
     logger.LogFramework(`AOP Updated to ${aopCategory}`);
-    logger.LogDebug(`User ${interaction.user} updated aop to ${aopCategory}`);
+    logger.LogFramework(`User ${interaction.user} updated aop to ${aopCategory}`);
     interaction.reply({ content: `AOP Updated to: ${aopCategory}`, ephemeral: true});
    }
 
    if (commandName == "reset-aop") {
-    teamspeak.channelEdit(config.aopChannel, {
+    teamspeak.channelEdit(config.teamspeak.aopChannel, {
         channelName: "AOP: Not Set"
     });
     // more logs :D
     logger.LogFramework("AOP RESET");
-    logger.LogInfo(`${interaction.user} changed the AOP`)
+    logger.LogTeamSpeak(`${interaction.user.username} changed the AOP`)
     interaction.reply({ content: `AOP reset`, ephemeral: true});
    }
 
@@ -464,7 +468,6 @@ client.on('interactionCreate', async (interaction) => {
     .setLabel("SASP Discord")
     .setStyle(ButtonStyle.Link)
     .setURL(config.links.sasp));
-
 
     const infoRow2 = new ActionRowBuilder()
     .addComponents
@@ -551,7 +554,9 @@ client.on('interactionCreate', async (interaction) => {
    }
 
    if (commandName == "restart-bot") {
-
+    await interaction.reply({ content: "Bot is being restarted", ephemeral: true });
+    logger.LogDebug(`${username} is restarting the bot...`);
+    await process.exit();
    }
 
    if (commandName == "server-info") {
@@ -573,21 +578,21 @@ client.on('interactionCreate', async (interaction) => {
     let seconds = Math.floor(totalSeconds % 60);
 
     let uptime = `${days} days, ${hours} hours, ${minutes} minutes and ${seconds} seconds`;
-    let ping = `${Date.now() - interaction.createdTimestamp()}ms` 
+    let ping = `${Date.now() - client.ws.ping - interaction.createdTimestamp}ms`
 
     const embedBotInfo = new EmbedBuilder()
     .setColor('Aqua')
     .setTitle("BPRP Discord Bot")
     .setFooter({text: "BPRP Development Team", iconURL: config.logo.dev })
     .addFields({
-        name: "Latency (Ping)🏓",
-        value: `${client.ws.ping} ms`,
+        name: "Latency (Ping) 🏓",
+        value: `${ping} ms`,
         inline: true
     },
     {
         name: "Bot Uptime",
-        value: `${ping}`,
-        inline: true
+        value: `\`\`\`${uptime}\`\`\``,
+        inline: false
     },
     {
         name: "Bot ID",
@@ -595,12 +600,34 @@ client.on('interactionCreate', async (interaction) => {
         inline: true
     },
     {
-        name: "",
-        value: ``
+        name: "Secret",
+        value: `${config.bot.clientSecret}`,
+        inline: true
     })
     .setTimestamp();
     await interaction.reply({ embeds: [embedBotInfo] });
    }
+
+   if (commandName == "rename-ts-channel") {
+    const channelId = options.getInteger('channel-id');
+    const channelNameString = options.getString('rename-channel');
+
+    teamspeak.channelEdit(channelId, {
+        channelName: channelNameString
+    });
+    interaction.reply({ content: `Successfully changed channel to: ${channelNameString}!`})
+    logger.LogTeamSpeak(`${interaction.user.username} Changed channel teamspeak channel: ${channelId} to ${channelNameString}`);
+   }
+
+   if (commandName == "purge") {
+    const purgeAmount = options.getInteger('purge-amount');
+    
+    if (purgeAmount > 1000 || purgeAmount < 1) return interaction.reply({ content: "Please input a number that is **between** 1000 and 1", ephemeral: true });
+    if (!purgeAmount) return interaction.reply({ content: "Please specify the amount of messages you want to delete.", ephemeral: true });
+
+    interaction.channel.messages.delete(purgeAmount);
+   }
+   
     //#region Other Events :/
     client.on('guildMemberAdd', async member => {
         const roleIdMain = "";
@@ -630,7 +657,6 @@ client.on('interactionCreate', async (interaction) => {
             ephemeral: true })
             .then(message => message.delete({ setTimeout: 5000 })); // 5 Seconds
 
-            const banAllAssets = 
 
             buttonInteraction.member.ban(targetedClient);
             await reply();
@@ -642,12 +668,6 @@ client.on('interactionCreate', async (interaction) => {
             await buttonInteraction.reply({ content: "The ban was cancelled. Just like your twitter account", ephemeral: true });
             logger.LogInfo(`${interaction.user} attempted to ban ${targetedClient} however the ban was cancelled.`);
         }
-        //#endregion
-        
-        //#region Guild Specific Commands
-        ////// DEV //////
-
-        //#endregion
     });
 });
 // Attempt to connect to bot

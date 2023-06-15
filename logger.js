@@ -14,6 +14,10 @@ class Logger {
     static LogFramework(message) {
         console.log(`[BPRP FRAMEWORK]: ${message}`);
     }
+
+    static LogTeamSpeak(message) {
+        console.log(`[BPRP TeamSpeak]: ${message}`);
+    }
 }
 
 module.exports = Logger;
