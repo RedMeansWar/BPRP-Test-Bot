@@ -701,7 +701,7 @@ client.on('interactionCreate', async (interaction) => {
         channelName: channelNameString
     });
     interaction.reply({ content: `Successfully changed channel to: ${channelNameString}!`})
-    LogTeamSpeak(`${username} Changed channel teamspeak channel: ${channelId} to ${channelNameString} logging.`);
+    LogTeamSpeak(`${username} Changed channel teamspeak channel: ${channelId} to "${channelNameString}". logging.`);
     
     const logTs = `${timestamp} - ${username} Changed TeamSpeak Channel: ${channelId} to ${channelNameString}`;
     const logCmd = `${timestamp} - ${username} used /rename-ts-channel`;
