@@ -1,4 +1,5 @@
 class Logger {
+
     static LogDebug(message) {
         console.log(`[DEBUG]: ${message}`);
     }
@@ -16,7 +17,7 @@ class Logger {
     }
 
     static LogTeamSpeak(message) {
-        console.log(`[BPRP TeamSpeak]: ${message}`);
+        console.log(`[BPRP TEAMSPEAK]: ${message}`);
     }
 }
 

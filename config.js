@@ -22,8 +22,8 @@ module.exports = {
     },
 
     website: {
-        communityURL: "https://beachpointrp.com/api",
-        websiteAPIKey: "fdda262bce1defe26619c9bdd64e9c42",
+        communityURL: "https://beachpointrp.com/api/",
+        websiteAPIKey: "fdda262bce1defe26619c9bdd64e9c42"
     },
 
     fivem: {

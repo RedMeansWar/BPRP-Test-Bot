@@ -12,15 +12,70 @@ const
 } = require('discord.js');
 
 const { TeamSpeak } = require('ts3-nodejs-library');
-const { exec } = require('child_process');
-const config = require('./config');
 const randomstring = require('randomstring');
 const mysql = require('mysql');
+const fs = require('fs');
+const config = require('./config');
 const emoji = require('./emoji');
 const logger = require('./logger');
 
-//#region List of RCON commands for server resources start/stop/restart
+// Logger Stuff
+const Error = logger.LogError;
+const LogFramework = logger.LogFramework;
+const Debug = logger.LogDebug;
+const LogTeamSpeak = logger.LogTeamSpeak;
+const Info = logger.LogInfo;
 
+const writeToCommandLog = (message) => {
+    fs.readFile('command.log', 'utf-8', (err, data) => {
+        if (err) throw err;
+
+        const lines = data.split("\n");
+        const updatedMessage = message.split("\n").join("\n");
+        const updateData = [...lines, updatedMessage].join("\n");
+        
+        fs.writeFile('command.log', updateData, (err) => { if (err) throw err; });
+    });
+}
+
+const writeToTsLog = (message) => {
+    fs.readFile('teamspeak.log', 'utf-8', (err, data) => {
+        if (err) throw err;
+
+        const lines = data.split("\n");
+        const updatedMessage = message.split("\n").join("\n");
+        const updateData = [...lines, updatedMessage].join("\n");
+        
+        fs.writeFile('teamspeak.log', updateData, (err) => { if (err) throw Error(err); });
+    });
+}
+
+const writeToFrameworkLog = (message) => {
+    fs.readFile('framework.log', 'utf-8', (err, data) => {
+        if (err) throw err;
+
+        const lines = data.split("\n");
+        const updatedMessage = message.split("\n").join("\n");
+        const updateData = [...lines, updatedMessage].join("\n");
+        
+        fs.writeFile('framework.log', updateData, (err) => { if (err) throw Error(err); });
+    });
+}
+
+const LogToCommandFile = writeToCommandLog;
+const LogToFrameworkFile = writeToFrameworkLog;
+const LogToTeamSpeakFile = writeToTsLog;
+
+const date = new Date();
+
+const year = date.getFullYear();
+const month = date.getUTCMonth() + 1;
+const day = date.getUTCDay();
+const hours = date.getUTCHours();
+const minutes = date.getUTCMinutes();
+const seconds = date.getUTCSeconds();
+
+const timestamp = `${year}-${month}-${day} @ ${hours}:${minutes}:${seconds}`
 
 // Register Client and REST (used for registering Guild Events and Bits)
 const client = new Client({
@@ -75,16 +130,6 @@ client.on('ready', () => {
 });
 
 const guild = client.guilds.cache.get();
-
-const guildIdMain = "1083784150647058432";
-const guildIdDev = "1110760188996239371";
-const guildIdStaff = "1101143145875517502";
-const guildIdSasp = "1110385177198329867";
-const guildIdLspd = "1100230229403914252";
-const guildIdLsfd = "1108460889507627031";
-const guildIdSacd = "1089439461256986674";
-const guildIdCiv = "1103522762934452266";
-const guildIdPublic = "1083791101749633044";
 
 let command;
 
@@ -299,6 +344,7 @@ client.on('ready', () => {
             {
                 name: "member-search",
                 description: "the user to search up",
+                type: 6, // user type
                 required: true
             }
         ]
@@ -306,7 +352,7 @@ client.on('ready', () => {
 
     command.create({
         name: "dev-server-info",
-        description: "Gives discord serfver information."
+        description: "Gives discord server information."
     });
     
     command.create({
@@ -338,7 +384,7 @@ client.on('ready', () => {
                 name: "rename-channel",
                 description: "what you want the channel name to be.",
                 type: 3, // string type
-                require: true
+                required: true
             }
         ]
     })
@@ -352,7 +398,7 @@ client.on('ready', () => {
                 name: "purge-amount",
                 description: "The amount of messages you wish to delete",
                 type: 4, // int type
-                require: true
+                required: true
             }
         ]
     })
@@ -391,7 +437,16 @@ client.on('interactionCreate', async (interaction) => {
     }) 
     .setFooter({ text: "BPRP Development Team", iconURL: "https://media.discordapp.net/attachments/1116557870910148639/1116559638121418782/BPRP_DEV.png?width=1002&height=1004"});
     teamspeak.serverTempPasswordAdd({ pw: tempPass, duration: 300, desc: `generated via bot by ${interaction.member.displayName}(${interaction.member.id})`})
+    
     await interaction.reply({ embeds: [tempPassEmbed] });
+
+    LogTeamSpeak(`Temporary Password Created by ${username}. Logging.`)
+
+    const logTs = `${timestamp} - ${username} created a teamspeak password.`;
+    const logCmd = `${timestamp} - ${username} used /temp-pass.`;
+    
+    LogToTeamSpeakFile(logTs)
+    LogToCommandFile(logCmd)
    }
 
    // This to WAYYY to long to code
@@ -400,11 +455,18 @@ client.on('interactionCreate', async (interaction) => {
 
     teamspeak.channelEdit(124, {
         channelName: `AOP: ${aopCategory}`
-    })
-    // logs
-    logger.LogFramework(`AOP Updated to ${aopCategory}`);
-    logger.LogFramework(`User ${interaction.user} updated aop to ${aopCategory}`);
+    });
     interaction.reply({ content: `AOP Updated to: ${aopCategory}`, ephemeral: true});
+    // logs
+    LogFramework(`AOP Updated to ${aopCategory}. Logging in 2 files`);
+
+    const logTS = `${timestamp} - ${username} changed the aop to ${aopCategory}`;
+    const logFW = `${timestamp} - ${username} changed the aop to ${aopCategory}`;
+    const logCmd = `${timestamp} - ${username} used /set-aop`;
+
+    LogToFrameworkFile(logFW);
+    LogToTeamSpeakFile(logTS);
+    LogToCommandFile(logCmd);
    }
 
    if (commandName == "reset-aop") {
@@ -412,8 +474,16 @@ client.on('interactionCreate', async (interaction) => {
         channelName: "AOP: Not Set"
     });
     // more logs :D
-    logger.LogFramework("AOP RESET");
-    logger.LogTeamSpeak(`${interaction.user.username} changed the AOP`)
+    LogFramework(`AOP RESET by ${username}. Logging to 2 files`);
+
+    const logFW = `${timestamp} - ${username} reset the AOP to "Not Set" [Changing AOP on Framework: core_framework]`;
+    const logTs = `${timestamp} - ${username} reset the AOP to "Not Set" [Changing TS3 Channel Name]`;
+    const logCmd = `${timestamp} - ${username} used /reset-aop`;
+    
+    LogToTeamSpeakFile(logTs);
+    LogToFrameworkFile(logFW);
+    LogToCommandFile(logCmd);
+    
     interaction.reply({ content: `AOP reset`, ephemeral: true});
    }
 
@@ -494,6 +564,9 @@ client.on('interactionCreate', async (interaction) => {
 
     interaction.reply({ content: "this doesn't matter so click off of this :/", ephemeral: true });
     interaction.channel.send({ embeds: [infoEmbed], components: [infoRow, infoRow2] });
+
+    const logCmd = `${timestamp} - ${username} used /info`
+    LogToCommandFile(logCmd);
    }
    
    if (commandName == "ban") {
@@ -543,19 +616,19 @@ client.on('interactionCreate', async (interaction) => {
     message.react(`${emoji[3]}`);
     message.react(`${emoji[6]}`);
     message.react(`${emoji[9]}`);
+
+    const log = `${timestamp} - ${username} use`;
+    LogToCommandFile(log);
    }
 
    if (commandName == "server-restart") {
     
    }
 
-   if (commandName == "restart-server") {
-    
-   }
-
    if (commandName == "restart-bot") {
     await interaction.reply({ content: "Bot is being restarted", ephemeral: true });
-    logger.LogDebug(`${username} is restarting the bot...`);
+    Debug(`${username} is restarting the bot.`);
+
     await process.exit();
    }
 
@@ -564,11 +637,23 @@ client.on('interactionCreate', async (interaction) => {
    }
 
    if (commandName == "client-info") {
-    
+    const memberSearch = options.getMember('member-search');
+    const convertToName = memberSearch.displayName;
+
+    const embedClientInfo = new EmbedBuilder()
+    .setTitle(`${convertToName}'s BPRP Information`)
+    .setTimestamp()
+    .setColor('Navy')
+    .setFooter({ text: "BPRP Development Team", iconURL: config.logo.dev })
+    .addFields
+    ({
+        name: "Website ID:",
+        value: `test`
+    });
+    interaction.reply({ embeds: [embedClientInfo] });
    }
 
    if (commandName == "bot-info") {
-    
     let totalSeconds = (client.uptime / 1000);
     let days = Math.floor(totalSeconds / 86400);
     totalSeconds %= 86400;
@@ -616,7 +701,13 @@ client.on('interactionCreate', async (interaction) => {
         channelName: channelNameString
     });
     interaction.reply({ content: `Successfully changed channel to: ${channelNameString}!`})
-    logger.LogTeamSpeak(`${interaction.user.username} Changed channel teamspeak channel: ${channelId} to ${channelNameString}`);
+    LogTeamSpeak(`${username} Changed channel teamspeak channel: ${channelId} to ${channelNameString} logging.`);
+    
+    const logTs = `${timestamp} - ${username} Changed TeamSpeak Channel: ${channelId} to ${channelNameString}`;
+    const logCmd = `${timestamp} - ${username} used /rename-ts-channel`;
+    
+    LogToTeamSpeakFile(logTs);
+    LogToCommandFile(logCmd);
    }
 
    if (commandName == "purge") {
@@ -657,16 +748,15 @@ client.on('interactionCreate', async (interaction) => {
             ephemeral: true })
             .then(message => message.delete({ setTimeout: 5000 })); // 5 Seconds
 
-
             buttonInteraction.member.ban(targetedClient);
             await reply();
             teamspeak.logAdd(`${tsId} was banned for ${reason} banned was issued by ${buttonInteraction.user.username}`);
             teamspeak.ban({ uid: tsId });
-            logger.LogInfo(`${targetedClient} issued a ban on ${targetedClient}`);
+            LogInfo(`${targetedClient} issued a ban on ${targetedClient}`);
         }
         else if (customId == "cancelBanButton") {
             await buttonInteraction.reply({ content: "The ban was cancelled. Just like your twitter account", ephemeral: true });
-            logger.LogInfo(`${interaction.user} attempted to ban ${targetedClient} however the ban was cancelled.`);
+            LogInfo(`${interaction.user} attempted to ban ${targetedClient} however the ban was cancelled.`);
         }
     });
 });
