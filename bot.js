@@ -752,11 +752,11 @@ client.on('interactionCreate', async (interaction) => {
             await reply();
             teamspeak.logAdd(`${tsId} was banned for ${reason} banned was issued by ${buttonInteraction.user.username}`);
             teamspeak.ban({ uid: tsId });
-            LogInfo(`${targetedClient} issued a ban on ${targetedClient}`);
+            Log(`${targetedClient} issued a ban on ${targetedClient}`);
         }
         else if (customId == "cancelBanButton") {
             await buttonInteraction.reply({ content: "The ban was cancelled. Just like your twitter account", ephemeral: true });
-            LogInfo(`${interaction.user} attempted to ban ${targetedClient} however the ban was cancelled.`);
+            Log(`${interaction.user} attempted to ban ${targetedClient} however the ban was cancelled.`);
         }
     });
 });
